@@ -25,10 +25,8 @@ logging.getLogger("pyrogram").setLevel(logging.ERROR)
 
 async def schedule_task_reset(self):
     scheduler = AsyncIOScheduler(timezone=pytz.timezone("Asia/Kolkata"))
-    scheduler.add_job(self.db.reset_daily_tasks, "cron", hour=0, minute=0, args=[self])  # Raat ke 12 baje reset hoga
+    scheduler.add_job(db.reset_daily_tasks, "cron", hour=0, minute=0, args=[self])  # Raat ke 12 baje reset hoga
     scheduler.start()
-
-
 
 
 class Bot(Client):
