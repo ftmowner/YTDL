@@ -10,6 +10,8 @@ import random
 import string
 import psutil
 import requests
+import uuid
+from pyrogram.errors import FloodWait
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from threading import Thread
@@ -159,49 +161,70 @@ async def download_and_resize_thumbnail(url, save_path="thumbnail.jpg"):
         logging.exception("Thumbnail download failed: %s", e)
     return None
 
+async def download_video(youtube_url, output_path):
+    ydl_opts = {
+        'outtmpl': output_path,
+        'format': 'bestvideo+bestaudio/best',
+        'merge_output_format': 'mp4'
+    }
+    with YoutubeDL(ydl_opts) as ydl:
+        ydl.download([youtube_url])
+    return output_path
+
 async def upload_video(client, chat_id, output_filename, caption, duration, width, height, thumbnail_path, status_msg):
-    if output_filename and os.path.exists(output_filename):
-        await status_msg.edit_text("📤 **Uploading video...**")
-        start_time = time.time()
-
-        async def upload_progress(sent, total):
-            await progress_for_pyrogram(sent, total, "📤 **Uploading...**", status_msg, start_time)
-
-        try:
-            with open(output_filename, "rb") as video_file:
-                await client.send_video(
-                    chat_id=chat_id,
-                    video=video_file,  # File streaming enabled
-                    progress=upload_progress,
-                    caption=caption,
-                    duration=duration,
-                    supports_streaming=True,
-                    height=height,
-                    width=width,
-                    disable_notification=True,
-                    thumb=thumbnail_path if thumbnail_path else None,
-                    file_name=os.path.basename(output_filename)
-                )
-
-            await status_msg.edit_text("✅ **Upload Successful!**")
-            await db.increment_task(chat_id)            
-            await status_msg.delete()
-
-        except Exception as e:
-            await status_msg.edit_text(f"❌ **Upload Failed!**\nError: {e}")
-
-        finally:
-            if os.path.exists(output_filename):
-                os.remove(output_filename)
-            if thumbnail_path and os.path.exists(thumbnail_path):
-                os.remove(thumbnail_path)
-            active_tasks.pop(chat_id, None)
-
-           
-    else:
+    if not output_filename or not os.path.exists(output_filename):
         await status_msg.edit_text("❌ **Upload Failed!**")
         active_tasks.pop(chat_id, None)
-        
+        return
+
+    await status_msg.edit_text("📤 Downloading and Uploading video...")
+    start_time = time.time()
+
+    async def upload_progress(sent, total):
+        await progress_for_pyrogram(sent, total, "📤 **Uploading...**", status_msg, start_time)
+
+    try:
+        with open(output_filename, "rb") as video_file:
+            await client.send_video(
+                chat_id=chat_id,
+                video=video_file,
+                progress=upload_progress,
+                caption=caption,
+                duration=duration,
+                supports_streaming=True,
+                height=height,
+                width=width,
+                disable_notification=True,
+                thumb=thumbnail_path if thumbnail_path else None,
+                file_name=os.path.basename(output_filename)
+            )
+
+        await status_msg.edit_text("✅ **Upload Successful!**")
+        await db.increment_task(chat_id)
+        await status_msg.delete()
+
+    except FloodWait as e:
+        await asyncio.sleep(e.x)
+        await upload_video(client, chat_id, output_filename, caption, duration, width, height, thumbnail_path, status_msg)
+    except Exception as e:
+        await status_msg.edit_text(f"❌ **Upload Failed!**\nError: {e}")
+    finally:
+        if os.path.exists(output_filename):
+            os.remove(output_filename)
+        if thumbnail_path and os.path.exists(thumbnail_path):
+            os.remove(thumbnail_path)
+        active_tasks.pop(chat_id, None)
+
+async def process_video(client, chat_id, youtube_url, caption, status_msg):
+    unique_id = uuid.uuid4().hex  # Generate unique ID
+    timestamp = int(time.time())  # Get current timestamp
+    output_filename = f"downloads/{chat_id}_{timestamp}_{unique_id}.mp4"
+    await download_video(youtube_url, output_filename)
+    await upload_video(client, chat_id, output_filename, caption, None, None, None, None, status_msg)
+
+async def process_videos_parallel(client, video_tasks):
+    await asyncio.gather(*[process_video(client, *task) for task in video_tasks])
+    
 
 async def download_video(client, callback_query, chat_id, youtube_link, format_id):
     if active_tasks.get(chat_id):
