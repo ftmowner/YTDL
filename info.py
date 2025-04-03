@@ -1,15 +1,15 @@
 import os
 
-SESSION = "my_bot"
-API_ID = int(os.getenv("API_ID", "80122"))
-API_HASH = os.getenv("API_HASH", "171")
-BOT_TOKEN = os.getenv("BOT_TOKEN", "80759xZZnChpX5srczTxgxz5YmHQ8")
-LOG_CHANNEL = int(os.getenv("LOG_CHANNEL", "-1002284232975"))
-DUMP_CHANNEL = int(os.getenv("DUMP_CHANNEL", "-1002284232975"))
+SESSION = "ftmbotzx"
+API_ID = int(os.getenv("API_ID", 22141398))
+API_HASH = os.getenv("API_HASH", '0c8f8bd171e05e42d6f6e5a6f4305389')
+BOT_TOKEN = os.getenv("BOT_TOKEN", "8105194942:AAFzL74g4y3EMJdouoVUtRig4SP_1eZk_xs")
+LOG_CHANNEL = int(os.getenv("LOG_CHANNEL", "-1002613994353"))
+DUMP_CHANNEL = int(os.getenv("DUMP_CHANNEL", "-1002613994353"))
 PORT = int(os.getenv("PORT", "8080"))
-FORCE_CHANNEL = int(os.getenv("FORCE_CHANNEL", "-1002379643238"))
+FORCE_CHANNEL = int(os.getenv("FORCE_CHANNEL", "-1002087228619"))
 HTTP_PROXY = ''
-MONGO_URI = os.getenv("MONGO_URI", "hhh")
-MONGO_NAME = os.getenv("MONGO_NAME", "YouTubeDL")
-ADMINS = [5660839376]
+MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://ftm:ftm@cluster0.xotfi .mongodb.net/?retryWrites=true&w= majority&appName=Cluster0")
+MONGO_NAME = os.getenv("MONGO_NAME", "Cluster0")
+ADMINS = [7744665378]
 DAILY_LIMITS = 10 
