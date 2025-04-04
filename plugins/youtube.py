@@ -19,6 +19,8 @@ from database.db import db
 from PIL import Image
 
 active_tasks = {}
+semaphore = asyncio.Semaphore(3)  # Limit to 3 uploads at once in parallel for Faster Process and less load  on C.P.U.
+
 
 def humanbytes(size):
     if not size:
@@ -171,7 +173,6 @@ async def download_video(youtube_url, output_path):
         ydl.download([youtube_url])
     return output_path
 
-semaphore = asyncio.Semaphore(3)  # Limit to 3 uploads at once in parallel for Faster Process and less load  on C.P.U.
 
 async def upload_video(client, chat_id, output_filename, caption, duration, width, height, thumbnail_path, status_msg):
     if not output_filename or not os.path.exists(output_filename):
