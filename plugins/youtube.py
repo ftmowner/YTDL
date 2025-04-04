@@ -10,8 +10,8 @@ import random
 import string
 import psutil
 import requests
-from asyncio import create_task
 from pyrogram import Client, filters
+from asyncio import create_task
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from threading import Thread
 from database.db import db
@@ -158,12 +158,10 @@ async def download_and_resize_thumbnail(url, save_path="thumbnail.jpg"):
             return save_path
     except Exception as e:
         logging.exception("Thumbnail download failed: %s", e)
-    return Noneasync def upload_video(client, chat_id, output_filename, caption, duration, width, height, thumbnail_path, status_msg):
-    if output_filename and os.path.exists(output_filename):
-        await status_msg.edit_text("📤 **Uploading video...**")
-        start_time = time.time()
+    return None
 
-create_task(upload_video(client, chat_id, output_filename, caption, duration, width, height, thumbnail_path, status_msg))    if output_filename and os.path.exists(output_filename):
+async def upload_video(client, chat_id, output_filename, caption, duration, width, height, thumbnail_path, status_msg):
+    if output_filename and os.path.exists(output_filename):
         await status_msg.edit_text("📤 **Uploading video...**")
         start_time = time.time()
 
@@ -198,10 +196,13 @@ create_task(upload_video(client, chat_id, output_filename, caption, duration, wi
                 os.remove(output_filename)
             if thumbnail_path and os.path.exists(thumbnail_path):
                 os.remove(thumbnail_path)
-            active_tasks.pop(chat_id, None)      
+            active_tasks.pop(chat_id, None)
+
+           
     else:
         await status_msg.edit_text("❌ **Upload Failed!**")
         active_tasks.pop(chat_id, None)
+        
 
 async def download_video(client, callback_query, chat_id, youtube_link, format_id):
     if active_tasks.get(chat_id):
@@ -267,8 +268,7 @@ async def download_video(client, callback_query, chat_id, youtube_link, format_i
             if high_quality_thumb:
                 thumbnail_path = await download_and_resize_thumbnail(high_quality_thumb)
 
-        await upload_video(client, chat_id, output_filename, caption, duration, width, height, thumbnail_path, status_msg)
-    else:
+        create_task(upload_video(client, chat_id, output_filename, caption, duration, width, height, thumbnail_path, status_msg))    else:
         await status_msg.edit_text("❌ **Download Failed!**")
         active_tasks.pop(chat_id, None)
    
