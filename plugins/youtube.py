@@ -171,80 +171,50 @@ async def download_video(youtube_url, output_path):
         ydl.download([youtube_url])
     return output_path
 
+semaphore = asyncio.Semaphore(3)  # Limit to 3 uploads at once in parallel for Faster Process and less load  on C.P.U.
+
 async def upload_video(client, chat_id, output_filename, caption, duration, width, height, thumbnail_path, status_msg):
     if not output_filename or not os.path.exists(output_filename):
         await status_msg.edit_text("❌ **Upload Failed!**")
         active_tasks.pop(chat_id, None)
         return
 
-    await status_msg.edit_text("📤 Downloading and Uploading video...")
-    start_time = time.time()
+    async with semaphore:  # Limit to 3 concurrent uploads
+        await status_msg.edit_text("📤 **Uploading video...**")
+        start_time = time.time()
 
-    async def upload_progress(sent, total):
-        await progress_for_pyrogram(sent, total, "📤 **Uploading...**", status_msg, start_time)
+        async def upload_progress(sent, total):
+            await progress_for_pyrogram(sent, total, "📤 **Uploading...**", status_msg, start_time)
 
-    try:
-        with open(output_filename, "rb") as video_file:
-            await client.send_video(
-                chat_id=chat_id,
-                video=video_file,
-                progress=upload_progress,
-                caption=caption,
-                duration=duration,
-                supports_streaming=True,
-                height=height,
-                width=width,
-                disable_notification=True,
-                thumb=thumbnail_path if thumbnail_path else None,
-                file_name=os.path.basename(output_filename)
-            )
+        try:
+            with open(output_filename, "rb") as video_file:
+                await client.send_video(
+                    chat_id=chat_id,
+                    video=video_file,
+                    caption=caption,
+                    duration=duration,
+                    width=width,
+                    height=height,
+                    supports_streaming=True,
+                    thumb=thumbnail_path if thumbnail_path else None,
+                    disable_notification=True,
+                    file_name=os.path.basename(output_filename),
+                    progress=upload_progress
+                )
 
-        await status_msg.edit_text("✅ **Upload Successful!**")
-        await db.increment_task(chat_id)
-        await status_msg.delete()
+            await status_msg.edit_text("✅ **Upload Successful!**")
+            await db.increment_task(chat_id)
+            await status_msg.delete()
 
-    except FloodWait as e:
-        await asyncio.sleep(e.x)
-        await upload_video(client, chat_id, output_filename, caption, duration, width, height, thumbnail_path, status_msg)
-    except Exception as e:
-        await status_msg.edit_text(f"❌ **Upload Failed!**\nError: {e}")
-    finally:
-        if os.path.exists(output_filename):
-            os.remove(output_filename)
-        if thumbnail_path and os.path.exists(thumbnail_path):
-            os.remove(thumbnail_path)
-        active_tasks.pop(chat_id, None)
+        except Exception as e:
+            await status_msg.edit_text(f"❌ **Upload Failed!**\nError: {e}")
 
-async def process_video(client, chat_id, youtube_url, caption, status_msg):
-    unique_id = uuid.uuid4().hex  # Generate unique ID
-    timestamp = int(time.time())  # Get current timestamp
-    output_filename = f"downloads/{chat_id}_{timestamp}_{unique_id}.mp4"
-    await download_video(youtube_url, output_filename)
-    await upload_video(client, chat_id, output_filename, caption, None, None, None, None, status_msg)
-
-async def process_videos_parallel(client, video_tasks):
-    await asyncio.gather(*[process_video(client, *task) for task in video_tasks])
-    
-
-async def download_video(client, callback_query, chat_id, youtube_link, format_id):
-    if active_tasks.get(chat_id):
-        await client.send_message(chat_id, "⏳ **Your previous task is still running. Please wait!**")
-        return
-
-    active_tasks[chat_id] = True  # Mark task as active
-    status_msg = await client.send_message(chat_id, "⏳ **Starting Download...**")
-    await callback_query.message.delete()
-    
-    queue = asyncio.Queue()
-    output_filename = None
-    caption = ""
-    duration = 0
-    width, height = 360, 360
-    thumbnail_path = None
-    youtube_thumbnail_url, thumbnails = None, []
-    
-    timestamp = time.strftime("%y%m%d")
-    random_str = ''.join(random.choices(string.ascii_lowercase + string.digits, k=3))
+        finally:
+            if os.path.exists(output_filename):
+                os.remove(output_filename)
+            if thumbnail_path and os.path.exists(thumbnail_path):
+                os.remove(thumbnail_path)
+            active_tasks.pop(chat_id, None)
 
     def run_yt_dlp():
         nonlocal output_filename, caption, duration, width, height, youtube_thumbnail_url, thumbnails
