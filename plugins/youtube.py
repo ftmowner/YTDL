@@ -17,6 +17,7 @@ from database.db import db
 from PIL import Image
 
 active_tasks = {}
+upload_semaphore = asyncio.Semaphore(3)
 
 def humanbytes(size):
     if not size:
