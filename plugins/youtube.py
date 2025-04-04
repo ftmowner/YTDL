@@ -163,14 +163,18 @@ async def download_and_resize_thumbnail(url, save_path="thumbnail.jpg"):
         await status_msg.edit_text("📤 **Uploading video...**")
         start_time = time.time()
 
-async def upload_progress(sent, total):
-                await progress_for_pyrogram(sent, total, "📤 **Uploading...**", status_msg, start_time)
+create_task(upload_video(client, chat_id, output_filename, caption, duration, width, height, thumbnail_path, status_msg))    if output_filename and os.path.exists(output_filename):
+        await status_msg.edit_text("📤 **Uploading video...**")
+        start_time = time.time()
+
+        async def upload_progress(sent, total):
+            await progress_for_pyrogram(sent, total, "📤 **Uploading...**", status_msg, start_time)
 
         try:
             with open(output_filename, "rb") as video_file:
                 await client.send_video(
                     chat_id=chat_id,
-                    video=video_file,
+                    video=video_file,  # File streaming enabled
                     progress=upload_progress,
                     caption=caption,
                     duration=duration,
@@ -183,7 +187,7 @@ async def upload_progress(sent, total):
                 )
 
             await status_msg.edit_text("✅ **Upload Successful!**")
-            await db.increment_task(chat_id)
+            await db.increment_task(chat_id)            
             await status_msg.delete()
 
         except Exception as e:
@@ -194,12 +198,10 @@ async def upload_progress(sent, total):
                 os.remove(output_filename)
             if thumbnail_path and os.path.exists(thumbnail_path):
                 os.remove(thumbnail_path)
-            active_tasks.pop(chat_id, None)
-
+            active_tasks.pop(chat_id, None)      
     else:
         await status_msg.edit_text("❌ **Upload Failed!**")
         active_tasks.pop(chat_id, None)
-
 
 async def download_video(client, callback_query, chat_id, youtube_link, format_id):
     if active_tasks.get(chat_id):
